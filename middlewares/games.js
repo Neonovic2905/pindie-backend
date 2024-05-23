@@ -15,16 +15,22 @@ const findGameById = async (req, res, next) => {
 }; 
 
 const findAllGames = async (req, res, next) => {
-  console.log("GET /games");
+  // Поиск всех игр в проекте по заданной категории
+  if(req.query["categories.name"]) { 
+    req.gamesArray = await games.findGameByCategory(req.query["categories.name"]);
+    next();
+    return;
+  }
+  // Поиск всех игр в проекте
   req.gamesArray = await games
     .find({})
     .populate("categories")
     .populate({
-          path: "users",
-          select: "-password"
-        });
+      path: "users",
+      select: "-password" // Исключим данные о паролях пользователей
+    })
   next();
-}; 
+};
 
 const createGame = async (req, res, next) => {
     console.log("POST /games");
@@ -60,6 +66,10 @@ const createGame = async (req, res, next) => {
   }; 
 
   const checkEmptyFields = async (req, res, next) => {
+    if(req.isVoteRequest) {
+      next();
+      return;
+    }
     if (
       !req.body.title ||
       !req.body.description ||
@@ -86,6 +96,10 @@ const createGame = async (req, res, next) => {
     }
   };   
   const checkIfCategoriesAvaliable = async (req, res, next) => {
+    if(req.isVoteRequest) {
+      next();
+      return;
+    }
     if (!req.body.categories || req.body.categories.length === 0) {
       res.setHeader("Content-Type", "application/json");
           res.status(400).send(JSON.stringify({ message: "Выберите хотя бы одну категорию" }));
@@ -106,5 +120,15 @@ const createGame = async (req, res, next) => {
           res.status(400).send(JSON.stringify({ message: "Нельзя удалять пользователей или добавлять больше одного пользователя" }));
     }
   }; 
+
+  const checkIsVoteRequest = async (req, res, next) => {
+    // Если в запросе присылают только поле users
+  if (Object.keys(req.body).length === 1 && req.body.users) {
+    req.isVoteRequest = true;
+  }
+  next();
+}; 
+
 // Экспортируем функцию поиска всех игр
-module.exports = {findAllGames,createGame, findGameById, updateGame, deleteGame, checkIsGameExists, checkIfCategoriesAvaliable, checkEmptyFields, checkIfUsersAreSafe}; 
+module.exports = {findAllGames,createGame, findGameById, updateGame, deleteGame, 
+  checkIsGameExists, checkIfCategoriesAvaliable, checkEmptyFields, checkIfUsersAreSafe, checkIsVoteRequest}; 
